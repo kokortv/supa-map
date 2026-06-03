@@ -573,52 +573,53 @@ async function loadDumps() {
   } catch (error) {
     state.dumps = [];
     renderMapAndLists();
-    toast(state.token ? error.message : "Для публичного просмотра откройте доступ к таблице по ссылке");
+    toast(state.token ? error.message : "Публичное чтение таблицы недоступно");
   }
 }
 
 async function loadPublicDumpRows() {
-  const url = `https://docs.google.com/spreadsheets/d/${state.config.sheetId}/gviz/tq?tqx=out:csv&sheet=Dumps`;
-  const response = await fetch(url);
-  if (!response.ok) throw new Error("Публичное чтение таблицы недоступно");
-  const text = await response.text();
-  const rows = parseCsv(text);
-  const header = rows[0] || [];
-  const indexByName = Object.fromEntries(header.map((name, index) => [name, index]));
-  return rows.slice(1).map((row) => HEADERS.map((name) => row[indexByName[name]] || ""));
+  const table = await loadGoogleVizTable(state.config.sheetId, "Dumps");
+  const labels = table.cols.map((column) => column.label || column.id || "");
+  const indexByName = Object.fromEntries(labels.map((name, index) => [name, index]));
+  return table.rows.map((row) => HEADERS.map((name) => {
+    const cell = row.c?.[indexByName[name]];
+    return cell?.v ?? cell?.f ?? "";
+  }));
 }
 
-function parseCsv(text) {
-  const rows = [];
-  let row = [];
-  let value = "";
-  let quoted = false;
-  for (let index = 0; index < text.length; index += 1) {
-    const char = text[index];
-    const next = text[index + 1];
-    if (char === '"' && quoted && next === '"') {
-      value += '"';
-      index += 1;
-    } else if (char === '"') {
-      quoted = !quoted;
-    } else if (char === "," && !quoted) {
-      row.push(value);
-      value = "";
-    } else if ((char === "\n" || char === "\r") && !quoted) {
-      if (char === "\r" && next === "\n") index += 1;
-      row.push(value);
-      rows.push(row);
-      row = [];
-      value = "";
-    } else {
-      value += char;
-    }
-  }
-  if (value || row.length) {
-    row.push(value);
-    rows.push(row);
-  }
-  return rows.filter((item) => item.some(Boolean));
+function loadGoogleVizTable(sheetId, sheetName) {
+  return new Promise((resolve, reject) => {
+    const callbackName = `supaMapSheet_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const script = document.createElement("script");
+    const cleanup = () => {
+      delete window[callbackName];
+      script.remove();
+    };
+    const timeout = setTimeout(() => {
+      cleanup();
+      reject(new Error("Публичное чтение таблицы недоступно"));
+    }, 12000);
+    window[callbackName] = (response) => {
+      clearTimeout(timeout);
+      cleanup();
+      if (response.status === "error") {
+        reject(new Error(response.errors?.[0]?.detailed_message || "Публичное чтение таблицы недоступно"));
+        return;
+      }
+      resolve(response.table || { cols: [], rows: [] });
+    };
+    const url = new URL(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq`);
+    url.searchParams.set("sheet", sheetName);
+    url.searchParams.set("headers", "1");
+    url.searchParams.set("tqx", `out:json;responseHandler:${callbackName}`);
+    script.onerror = () => {
+      clearTimeout(timeout);
+      cleanup();
+      reject(new Error("Публичное чтение таблицы недоступно"));
+    };
+    script.src = url.toString();
+    document.head.appendChild(script);
+  });
 }
 
 function rowToDump(row, index) {
