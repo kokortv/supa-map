@@ -412,6 +412,35 @@ textarea {
   box-shadow: var(--soft-shadow);
 }
 
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.stat-card {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  border: 1px solid rgba(255,255,255,0.70);
+  border-radius: 18px;
+  padding: 10px 8px;
+  background: var(--surface);
+  box-shadow: var(--soft-shadow);
+}
+
+.stat-card strong {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.stat-card span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
 .legend span,
 .schema div {
   display: flex;
@@ -457,6 +486,16 @@ textarea {
     linear-gradient(315deg, rgba(37, 99, 235, 0.05), transparent 52%),
     var(--surface);
   box-shadow: var(--soft-shadow);
+}
+
+.item-photo {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 20px;
+  margin-bottom: 12px;
+  background: var(--focus-soft);
 }
 
 .item::before {
@@ -532,6 +571,7 @@ textarea {
 }
 
 .location-box,
+.assist-panel,
 .schema,
 .settings-section {
   border: 1px solid rgba(255,255,255,0.70);
@@ -541,6 +581,25 @@ textarea {
   box-shadow: var(--soft-shadow);
   min-width: 0;
   overflow: hidden;
+}
+
+.assist-panel {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.assist-panel span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.assist-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 6px;
 }
 
 .schema {
@@ -647,6 +706,34 @@ textarea {
 
 .settings-section h2 {
   margin-bottom: 8px;
+}
+
+.admin-controls {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.admin-controls select {
+  grid-column: 1 / -1;
+}
+
+.admin-filter {
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  color: var(--muted);
+  background: var(--surface);
+  font-size: 12px;
+}
+
+.admin-filter.active {
+  color: #ffffff;
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--focus), var(--violet));
 }
 
 .segmented {
@@ -1183,6 +1270,15 @@ video {
     grid-template-columns: repeat(4, 46px);
     justify-content: end;
     gap: 8px;
+  }
+
+  .stats-grid,
+  .admin-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .assist-actions {
+    grid-template-columns: 1fr;
   }
 
   .brand {

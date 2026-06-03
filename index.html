@@ -7,7 +7,8 @@
     <link rel="preconnect" href="https://accounts.google.com">
     <link rel="preconnect" href="https://www.googleapis.com">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <link rel="stylesheet" href="./styles.css">
+    <link rel="stylesheet" href="./styles.css?v=20260603-2">
+    <script src="./config.js?v=20260603-2"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
   </head>
@@ -54,6 +55,7 @@
             <span><i class="dot confirmed"></i>Подтверждена</span>
             <span><i class="dot rejected"></i>Отклонена</span>
           </div>
+          <div class="stats-grid" id="statsGrid" aria-live="polite"></div>
           <div class="list" id="dumpList" aria-live="polite"></div>
         </section>
 
@@ -107,6 +109,22 @@
                 <button class="secondary" id="locateButton" type="button">Сейчас</button>
               </div>
             </div>
+            <div class="assist-panel" id="photoLocationAssist" hidden>
+              <strong>Точка из фото не найдена</strong>
+              <span>Можно быстро взять текущее место или поставить точку на карте.</span>
+              <div class="assist-actions">
+                <button class="primary" id="assistLocateButton" type="button">Мое место</button>
+                <button class="secondary" id="assistMapButton" type="button">На карте</button>
+              </div>
+            </div>
+            <div class="assist-panel draft-panel" id="draftPanel" hidden>
+              <strong>Есть несохраненный черновик</strong>
+              <span>Мы сохранили фото, описание и координаты на этом устройстве.</span>
+              <div class="assist-actions">
+                <button class="primary" id="restoreDraftButton" type="button">Вернуть</button>
+                <button class="secondary" id="clearDraftButton" type="button">Удалить</button>
+              </div>
+            </div>
             <label>
               Описание
               <textarea name="description" rows="4" maxlength="500" placeholder="Необязательно"></textarea>
@@ -152,6 +170,16 @@
                   <p id="adminHint">Заявки и хранилище Supa Map.</p>
                 </div>
                 <button class="secondary" id="adminRefreshButton" type="button">Обновить</button>
+              </div>
+              <div class="admin-controls">
+                <button class="admin-filter active" type="button" data-admin-status="all">Все</button>
+                <button class="admin-filter" type="button" data-admin-status="pending">Новые</button>
+                <button class="admin-filter" type="button" data-admin-status="confirmed">Подтвержд.</button>
+                <button class="admin-filter" type="button" data-admin-status="rejected">Отклон.</button>
+                <select id="adminSort">
+                  <option value="newest">Сначала новые</option>
+                  <option value="nearest">Сначала ближайшие</option>
+                </select>
               </div>
               <div class="list admin-list" id="adminList"></div>
             </section>
@@ -208,6 +236,7 @@
 
     <template id="dumpItemTemplate">
       <article class="item">
+        <img class="item-photo" alt="Фото свалки" loading="lazy" hidden>
         <div class="item-top">
           <span class="badge"></span>
           <button class="ghost focus-button" type="button">На карте</button>
@@ -221,6 +250,6 @@
       </article>
     </template>
 
-    <script src="./app.js" defer></script>
+    <script src="./app.js?v=20260603-2" defer></script>
   </body>
 </html>

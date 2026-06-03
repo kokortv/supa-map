@@ -1,12 +1,15 @@
 const CONFIG_KEY = "dump-map-config-v1";
 const SESSION_KEY = "dump-map-session-v1";
+const DRAFT_DB_NAME = "supa-map-drafts";
+const DRAFT_STORE = "drafts";
+const DRAFT_ID = "new-dump";
+const DUPLICATE_RADIUS_METERS = 80;
 const DEFAULT_THEME = "system";
-const APP_GOOGLE_CLIENT_ID = "66393576825-hl14ol7johmufhen7e10iugfne9dv6mk.apps.googleusercontent.com";
-const APP_GOOGLE_SHEET_ID = "1rYGrZH4XnV6BaIdV2RWcSN9d--Lfb4Boijho3ut05mA";
-const APP_DRIVE_FOLDER_ID = "1Ue_kyzdJQ1FN4alQRl-iWckFn0tP_EUe";
-const BOOTSTRAP_ADMIN_EMAILS = [
-  "kirill.kokorin@gmail.com"
-];
+const APP_CONFIG = window.SUPA_MAP_CONFIG || {};
+const APP_GOOGLE_CLIENT_ID = APP_CONFIG.googleClientId || "66393576825-hl14ol7johmufhen7e10iugfne9dv6mk.apps.googleusercontent.com";
+const APP_GOOGLE_SHEET_ID = APP_CONFIG.googleSheetId || "1rYGrZH4XnV6BaIdV2RWcSN9d--Lfb4Boijho3ut05mA";
+const APP_DRIVE_FOLDER_ID = APP_CONFIG.driveFolderId || "1Ue_kyzdJQ1FN4alQRl-iWckFn0tP_EUe";
+const BOOTSTRAP_ADMIN_EMAILS = APP_CONFIG.adminEmails || ["kirill.kokorin@gmail.com"];
 const AUTO_SPREADSHEET_TITLE = "Supa Map - заявки";
 const AUTO_DRIVE_FOLDER_NAME = "Supa Map - фото";
 const SCOPES = [
@@ -50,6 +53,8 @@ const state = {
   map: null,
   tokenClient: null,
   currentView: "listView",
+  adminStatusFilter: "all",
+  adminSort: "newest",
   config: loadConfig()
 };
 
@@ -66,6 +71,7 @@ document.addEventListener("DOMContentLoaded", () => {
   bindDumpForm();
   initMapWhenReady();
   applySettingsToForm();
+  checkDraft();
   renderAuth();
   renderAccess();
   renderLists();
@@ -212,6 +218,17 @@ function bindAuth() {
 function bindFilters() {
   $("#statusFilter").addEventListener("change", renderMapAndLists);
   $("#typeFilter").addEventListener("change", renderMapAndLists);
+  $$(".admin-filter").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.adminStatusFilter = button.dataset.adminStatus;
+      $$(".admin-filter").forEach((item) => item.classList.toggle("active", item === button));
+      renderAdminList();
+    });
+  });
+  $("#adminSort").addEventListener("change", (event) => {
+    state.adminSort = event.target.value;
+    renderAdminList();
+  });
 }
 
 function bindDumpForm() {
@@ -222,6 +239,13 @@ function bindDumpForm() {
   $("#locateButton").addEventListener("click", () => getCurrentPosition({ useForDump: true }));
   $("#successMapButton").addEventListener("click", () => openView("mapView"));
   $("#successNewButton").addEventListener("click", resetDumpForm);
+  $("#assistLocateButton").addEventListener("click", () => getCurrentPosition({ useForDump: true }));
+  $("#assistMapButton").addEventListener("click", () => {
+    openView("mapView");
+    toast("Кликните на карте в месте свалки");
+  });
+  $("#restoreDraftButton").addEventListener("click", restoreDraft);
+  $("#clearDraftButton").addEventListener("click", clearDraft);
   $("#cameraButton").addEventListener("click", () => $("#cameraInput").click());
   $("#galleryButton").addEventListener("click", () => $("#photoInput").click());
   $("#cameraInput").addEventListener("change", (event) => handlePhotoPicked(event.target.files?.[0], true));
@@ -249,9 +273,11 @@ async function handlePhotoPicked(file, fromCamera) {
     const location = await setDumpLocation(gps.lat, gps.lng);
     if (location) {
       state.map?.setView([gps.lat, gps.lng], 17);
+      $("#photoLocationAssist").hidden = true;
       toast("Точка взята из геометки фотографии");
     }
   } else {
+    $("#photoLocationAssist").hidden = false;
     toast(photoGpsFallbackMessage(file));
   }
 }
@@ -259,13 +285,142 @@ async function handlePhotoPicked(file, fromCamera) {
 function photoGpsFallbackMessage(file) {
   const name = String(file.name || "");
   const type = String(file.type || "");
+  const isAndroid = /Android/i.test(navigator.userAgent || "");
   if (/heic|heif/i.test(type) || /\.(heic|heif)$/i.test(name)) {
     return "HEIC-фото выбрано. Если точка не появилась, поставьте ее на карте";
   }
   if (!/^image\/jpe?g$/i.test(type) && !/\.jpe?g$/i.test(name)) {
     return "Геометки читаются из JPEG. Поставьте точку на карте";
   }
+  if (isAndroid) {
+    return "Android не передал геометку из галереи. Выберите через Файлы или поставьте точку на карте";
+  }
   return "В фото нет геометки. Поставьте точку на карте";
+}
+
+function findNearbyDump(lat, lng) {
+  return state.dumps
+    .filter((dump) => dump.status !== "rejected")
+    .map((dump) => ({
+      dump,
+      distance: distanceMeters(lat, lng, dump.lat, dump.lng)
+    }))
+    .filter((item) => item.distance <= DUPLICATE_RADIUS_METERS)
+    .sort((a, b) => a.distance - b.distance)[0]?.dump || null;
+}
+
+function distanceMeters(lat1, lng1, lat2, lng2) {
+  const earth = 6371000;
+  const toRad = (value) => value * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return earth * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+async function saveDraftFromForm(form) {
+  try {
+    const formData = new FormData(form);
+    const photo = state.selectedPhoto || formData.get("photo");
+    if (!(photo instanceof File) || !photo.size) return;
+    await putDraft({
+      id: DRAFT_ID,
+      savedAt: new Date().toISOString(),
+      type: String(formData.get("type") || ""),
+      size: String(formData.get("size") || ""),
+      description: String(formData.get("description") || ""),
+      location: state.location,
+      photo
+    });
+    $("#draftPanel").hidden = false;
+    toast("Не удалось отправить. Черновик сохранен на устройстве");
+  } catch {
+    toast("Не удалось отправить и сохранить черновик");
+  }
+}
+
+async function checkDraft() {
+  try {
+    const draft = await getDraft();
+    $("#draftPanel").hidden = !draft;
+  } catch {
+    $("#draftPanel").hidden = true;
+  }
+}
+
+async function restoreDraft() {
+  const draft = await getDraft();
+  if (!draft) {
+    $("#draftPanel").hidden = true;
+    return;
+  }
+  const form = $("#dumpForm");
+  form.type.value = draft.type || form.type.value;
+  form.size.value = draft.size || form.size.value;
+  form.description.value = draft.description || "";
+  if (draft.photo instanceof File || draft.photo instanceof Blob) {
+    state.selectedPhoto = draft.photo;
+    $("#photoPreview").src = URL.createObjectURL(draft.photo);
+    $("#photoPreview").hidden = false;
+  }
+  if (draft.location) {
+    state.location = draft.location;
+    renderLocation();
+    renderSelectedDumpMarker();
+  }
+  $("#draftPanel").hidden = true;
+  toast("Черновик восстановлен");
+}
+
+async function clearDraft({ silent = false } = {}) {
+  await deleteDraft();
+  $("#draftPanel").hidden = true;
+  if (!silent) toast("Черновик удален");
+}
+
+function openDraftDb() {
+  return new Promise((resolve, reject) => {
+    if (!window.indexedDB) {
+      reject(new Error("Черновики недоступны в этом браузере"));
+      return;
+    }
+    const request = indexedDB.open(DRAFT_DB_NAME, 1);
+    request.onupgradeneeded = () => {
+      request.result.createObjectStore(DRAFT_STORE, { keyPath: "id" });
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function withDraftStore(mode, callback) {
+  const db = await openDraftDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(DRAFT_STORE, mode);
+    const store = tx.objectStore(DRAFT_STORE);
+    const result = callback(store);
+    tx.oncomplete = () => {
+      db.close();
+      resolve(result?.result);
+    };
+    tx.onerror = () => {
+      db.close();
+      reject(tx.error);
+    };
+  });
+}
+
+function putDraft(draft) {
+  return withDraftStore("readwrite", (store) => store.put(draft));
+}
+
+function getDraft() {
+  return withDraftStore("readonly", (store) => store.get(DRAFT_ID));
+}
+
+function deleteDraft() {
+  return withDraftStore("readwrite", (store) => store.delete(DRAFT_ID));
 }
 
 function bindDumpSubmit() {
@@ -277,10 +432,23 @@ function bindDumpSubmit() {
         toast("Поставьте точку свалки на карте");
         return;
       }
+      const duplicate = findNearbyDump(state.location.lat, state.location.lng);
+      if (duplicate) {
+        const proceed = await showConfirmDialog({
+          title: "Похожая точка рядом",
+          message: `${duplicate.type} уже отмечена примерно в ${Math.round(distanceMeters(state.location.lat, state.location.lng, duplicate.lat, duplicate.lng))} м. Все равно отправить новую заявку?`,
+          confirmText: "Отправить",
+          cancelText: "Проверить карту"
+        });
+        if (!proceed) {
+          focusDump(duplicate);
+          return;
+        }
+      }
 
       const form = new FormData(event.currentTarget);
       const photo = state.selectedPhoto || form.get("photo");
-      if (!(photo instanceof File) || !photo.size) {
+      if (!(photo instanceof Blob) || !photo.size) {
         toast("Фото обязательно");
         return;
       }
@@ -306,6 +474,7 @@ function bindDumpSubmit() {
         adminNote: ""
       };
       await appendDump(row);
+      await clearDraft({ silent: true });
       showSuccessPanel();
       state.location = null;
       renderLocation();
@@ -313,6 +482,7 @@ function bindDumpSubmit() {
       await loadDumps();
       toast("Заявка добавлена. Ее обработают в ближайшее время");
     } catch (error) {
+      await saveDraftFromForm(event.currentTarget);
       toast(error.message);
     } finally {
       setBusy(event.submitter, false);
@@ -705,7 +875,7 @@ async function deleteDump(dump) {
 
 async function uploadPhoto(file) {
   const metadata = {
-    name: `${Date.now()}-${file.name}`,
+    name: `${Date.now()}-${file.name || "draft-photo.jpg"}`,
     mimeType: file.type || "application/octet-stream",
     parents: [state.config.folderId]
   };
@@ -768,98 +938,11 @@ function humanizeGeolocationError(error) {
 }
 
 async function setDumpLocation(lat, lng) {
-  toast("Проверяем точку...");
-  const water = await isWaterPoint(lat, lng);
-  if (water) {
-    toast("Точка находится на воде. Выберите место на суше");
-    return null;
-  }
   state.location = { lat, lng };
   renderLocation();
   renderSelectedDumpMarker();
   toast("Точка свалки выбрана");
   return state.location;
-}
-
-async function isWaterPoint(lat, lng) {
-  if (await isWaterByTileColor(lat, lng)) return true;
-  try {
-    const url = new URL("https://nominatim.openstreetmap.org/reverse");
-    url.searchParams.set("format", "jsonv2");
-    url.searchParams.set("lat", String(lat));
-    url.searchParams.set("lon", String(lng));
-    url.searchParams.set("zoom", "18");
-    url.searchParams.set("addressdetails", "1");
-    url.searchParams.set("email", "kirill.kokorin@gmail.com");
-    const response = await fetch(url.toString(), {
-      headers: { Accept: "application/json" }
-    });
-    if (!response.ok) return false;
-    const data = await response.json();
-    const haystack = [
-      data.category,
-      data.class,
-      data.type,
-      data.addresstype,
-      data.name,
-      data.display_name
-    ].join(" ").toLowerCase();
-    return /\b(water|sea|ocean|bay|strait|lake|reservoir|river|stream|canal|wetland|basin|dock|harbour|marina)\b/.test(haystack);
-  } catch {
-    return false;
-  }
-}
-
-async function isWaterByTileColor(lat, lng) {
-  try {
-    const zoom = Math.min(17, Math.max(12, Math.round(state.map?.getZoom?.() || 16)));
-    const scale = 2 ** zoom;
-    const xFloat = ((lng + 180) / 360) * scale;
-    const sinLat = Math.sin((lat * Math.PI) / 180);
-    const yFloat = (0.5 - Math.log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI)) * scale;
-    const x = Math.floor(xFloat);
-    const y = Math.floor(yFloat);
-    const pixelX = Math.floor((xFloat - x) * 256);
-    const pixelY = Math.floor((yFloat - y) * 256);
-    const image = await loadTileImage(`https://tile.openstreetmap.org/${zoom}/${x}/${y}.png`);
-    const canvas = document.createElement("canvas");
-    canvas.width = 256;
-    canvas.height = 256;
-    const context = canvas.getContext("2d", { willReadFrequently: true });
-    context.drawImage(image, 0, 0);
-    const samples = [
-      [pixelX, pixelY],
-      [pixelX - 2, pixelY],
-      [pixelX + 2, pixelY],
-      [pixelX, pixelY - 2],
-      [pixelX, pixelY + 2]
-    ];
-    const waterVotes = samples.filter(([sampleX, sampleY]) => {
-      const sx = Math.max(0, Math.min(255, sampleX));
-      const sy = Math.max(0, Math.min(255, sampleY));
-      const [red, green, blue] = context.getImageData(sx, sy, 1, 1).data;
-      return isWaterColor(red, green, blue);
-    }).length;
-    return waterVotes >= 3;
-  } catch {
-    return false;
-  }
-}
-
-function loadTileImage(src) {
-  return new Promise((resolve, reject) => {
-    const image = document.createElement("img");
-    image.crossOrigin = "anonymous";
-    image.onload = () => resolve(image);
-    image.onerror = reject;
-    image.src = src;
-  });
-}
-
-function isWaterColor(red, green, blue) {
-  const blueDominant = blue > red + 18 && blue >= green - 12;
-  const waterRange = red >= 120 && red <= 210 && green >= 165 && green <= 230 && blue >= 175 && blue <= 240;
-  return blueDominant && waterRange;
 }
 
 async function readImageGps(file) {
@@ -1090,6 +1173,7 @@ function renderAccess() {
 function renderMapAndLists() {
   renderMap();
   renderLists();
+  renderStats();
 }
 
 function renderMap() {
@@ -1136,8 +1220,29 @@ function createDumpPopup(dump) {
 }
 
 function renderLists() {
+  renderStats();
   renderDumpList();
   renderAdminList();
+}
+
+function renderStats() {
+  const stats = $("#statsGrid");
+  if (!stats) return;
+  const total = state.dumps.length;
+  const pending = state.dumps.filter((dump) => dump.status === "pending").length;
+  const confirmed = state.dumps.filter((dump) => dump.status === "confirmed").length;
+  const rejected = state.dumps.filter((dump) => dump.status === "rejected").length;
+  stats.innerHTML = [
+    ["Всего", total],
+    ["Новые", pending],
+    ["Подтв.", confirmed],
+    ["Откл.", rejected]
+  ].map(([label, value]) => `
+    <div class="stat-card">
+      <strong>${value}</strong>
+      <span>${label}</span>
+    </div>
+  `).join("");
 }
 
 function renderDumpList() {
@@ -1158,7 +1263,17 @@ function renderAdminList() {
     list.innerHTML = `<p class="meta">Войдите под email администратора.</p>`;
     return;
   }
-  const dumps = [...state.dumps].sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+  let dumps = [...state.dumps];
+  if (state.adminStatusFilter !== "all") {
+    dumps = dumps.filter((dump) => dump.status === state.adminStatusFilter);
+  }
+  dumps.sort((a, b) => {
+    if (state.adminSort === "nearest" && state.currentLocation) {
+      return distanceMeters(state.currentLocation.lat, state.currentLocation.lng, a.lat, a.lng)
+        - distanceMeters(state.currentLocation.lat, state.currentLocation.lng, b.lat, b.lng);
+    }
+    return String(b.createdAt).localeCompare(String(a.createdAt));
+  });
   if (!dumps.length) {
     list.innerHTML = `<p class="meta">Заявок пока нет.</p>`;
     return;
@@ -1171,6 +1286,12 @@ function createDumpItem(dump, adminMode) {
   node.classList.add(`status-${dump.status || "pending"}`);
   $(".badge", node).textContent = statusText(dump.status);
   $(".badge", node).style.background = getColor(dump.status);
+  const photo = $(".item-photo", node);
+  const thumbnailUrl = getPhotoThumbnailUrl(dump);
+  if (thumbnailUrl) {
+    photo.src = thumbnailUrl;
+    photo.hidden = false;
+  }
   $("h3", node).textContent = `${dump.type} · ${dump.size}`;
   $(".meta", node).textContent = `${formatDate(dump.createdAt)} · ${dump.confirmations.length} подтвержд. · ${dump.createdByEmail}`;
   $(".desc", node).textContent = dump.description || "Без описания";
@@ -1282,9 +1403,6 @@ async function adminSaveEdit(dump, root) {
     const lng = Number($("[name='editLng']", root).value);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
       throw new Error("Проверьте координаты");
-    }
-    if (await isWaterPoint(lat, lng)) {
-      throw new Error("Точка находится на воде. Выберите место на суше");
     }
     dump.type = $("[name='editType']", root).value;
     dump.size = $("[name='editSize']", root).value;
