@@ -287,6 +287,19 @@ h2 {
   justify-content: space-between;
 }
 
+.admin-head {
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.admin-head > div {
+  min-width: 0;
+}
+
+.admin-head button {
+  flex: 0 0 auto;
+}
+
 button,
 .link-button {
   display: inline-flex;
@@ -673,7 +686,16 @@ body.theme-dark .app-dialog {
 .admin-extra {
   display: grid;
   gap: 10px;
-  margin-top: 12px;
+  margin-top: 14px;
+  min-width: 0;
+}
+
+.admin-edit-panel {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
 }
 
 .admin-edit-grid {
@@ -683,11 +705,84 @@ body.theme-dark .app-dialog {
   min-width: 0;
 }
 
+.admin-coords-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  min-width: 0;
+}
+
+.admin-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .admin-actions {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  grid-template-columns: repeat(4, 46px);
+  justify-content: end;
   gap: 8px;
-  margin-top: 10px;
+  margin-top: 4px;
+  min-width: 0;
+}
+
+.admin-actions button,
+.admin-edit-actions button {
+  width: 46px;
+  height: 46px;
+  min-width: 0;
+  min-height: 46px;
+  padding: 0;
+  border-radius: 16px;
+  font-size: 21px;
+  line-height: 1;
+  text-align: center;
+}
+
+.icon-action {
+  color: var(--ink);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: 0 10px 22px rgba(16, 24, 39, 0.08);
+}
+
+.admin-actions .approve {
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--confirmed), var(--teal));
+  box-shadow: 0 14px 26px color-mix(in srgb, var(--confirmed) 24%, transparent);
+}
+
+.admin-actions .reject {
+  color: var(--rejected);
+  border-color: color-mix(in srgb, var(--rejected) 22%, var(--line));
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--rejected) 10%, transparent), transparent),
+    var(--surface);
+}
+
+.admin-actions .save-edit {
+  color: var(--focus);
+  border-color: color-mix(in srgb, var(--focus) 20%, var(--line));
+}
+
+.admin-actions .edit-toggle {
+  color: var(--focus);
+}
+
+.admin-actions .edit-toggle.active {
+  color: #ffffff;
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--focus), var(--violet));
+}
+
+.admin-actions .remove {
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--rejected), var(--ruby));
+}
+
+.admin-edit-actions .save-edit {
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--focus), var(--violet));
 }
 
 .danger {
@@ -1018,8 +1113,7 @@ video {
   }
 
   .filter-grid,
-  .admin-edit-grid,
-  .admin-actions {
+  .admin-edit-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1040,6 +1134,21 @@ video {
 
   .toolbar > button {
     flex: 1 1 100%;
+  }
+
+  .admin-head {
+    display: grid;
+    gap: 10px;
+  }
+
+  .admin-head button {
+    width: 100%;
+  }
+
+  .admin-actions {
+    grid-template-columns: repeat(4, 46px);
+    justify-content: end;
+    gap: 8px;
   }
 
   .brand {
@@ -1101,5 +1210,18 @@ video {
 
   h1 {
     font-size: 20px;
+  }
+
+  .admin-actions {
+    grid-template-columns: repeat(4, 42px);
+  }
+
+  .admin-actions button,
+  .admin-edit-actions button {
+    width: 42px;
+    height: 42px;
+    min-height: 42px;
+    border-radius: 14px;
+    font-size: 19px;
   }
 }

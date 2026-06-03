@@ -1137,6 +1137,13 @@ function createDumpItem(dump, adminMode) {
     const admin = document.createElement("div");
     admin.className = "admin-extra";
     admin.innerHTML = `
+      <div class="admin-actions">
+        <button class="icon-action approve" type="button" title="Подтвердить" aria-label="Подтвердить заявку">✓</button>
+        <button class="icon-action reject" type="button" title="Отказать" aria-label="Отказать в заявке">×</button>
+        <button class="icon-action edit-toggle" type="button" title="Редактировать" aria-label="Редактировать заявку" aria-expanded="false">✎</button>
+        <button class="icon-action remove" type="button" title="Удалить" aria-label="Удалить заявку">⌫</button>
+      </div>
+      <div class="admin-edit-panel" hidden>
       <div class="admin-edit-grid">
         <label>
           Тип
@@ -1150,6 +1157,8 @@ function createDumpItem(dump, adminMode) {
             ${["Маленькая", "Средняя", "Большая"].map((size) => `<option value="${escapeAttr(size)}" ${dump.size === size ? "selected" : ""}>${escapeHtml(size)}</option>`).join("")}
           </select>
         </label>
+      </div>
+      <div class="admin-coords-row">
         <label>
           Широта
           <input name="editLat" type="number" step="0.000001" value="${escapeAttr(dump.lat)}">
@@ -1167,14 +1176,20 @@ function createDumpItem(dump, adminMode) {
         Пояснение администратора
         <textarea name="editAdminNote" rows="2" placeholder="Пояснение администратора">${escapeHtml(dump.adminNote || "")}</textarea>
       </label>
-      <div class="admin-actions">
-        <button class="secondary save-edit" type="button">Сохранить</button>
-        <button class="primary approve" type="button">Подтвердить</button>
-        <button class="secondary reject" type="button">Отказать</button>
-        <button class="danger remove" type="button">Удалить</button>
+      <div class="admin-edit-actions">
+        <button class="primary save-edit" type="button" title="Сохранить" aria-label="Сохранить изменения">✓</button>
+      </div>
       </div>
     `;
     node.appendChild(admin);
+    const editPanel = $(".admin-edit-panel", admin);
+    const editButton = $(".edit-toggle", admin);
+    editButton.addEventListener("click", () => {
+      const nextExpanded = editPanel.hidden;
+      editPanel.hidden = !nextExpanded;
+      editButton.setAttribute("aria-expanded", String(nextExpanded));
+      editButton.classList.toggle("active", nextExpanded);
+    });
     $(".save-edit", admin).addEventListener("click", () => adminSaveEdit(dump, admin));
     $(".approve", admin).addEventListener("click", () => adminSetStatus(dump, "confirmed", $("[name='editAdminNote']", admin).value));
     $(".reject", admin).addEventListener("click", () => adminSetStatus(dump, "rejected", $("[name='editAdminNote']", admin).value));
