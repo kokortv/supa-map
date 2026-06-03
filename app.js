@@ -251,7 +251,21 @@ async function handlePhotoPicked(file, fromCamera) {
       state.map?.setView([gps.lat, gps.lng], 17);
       toast("Точка взята из геометки фотографии");
     }
+  } else {
+    toast(photoGpsFallbackMessage(file));
   }
+}
+
+function photoGpsFallbackMessage(file) {
+  const name = String(file.name || "");
+  const type = String(file.type || "");
+  if (/heic|heif/i.test(type) || /\.(heic|heif)$/i.test(name)) {
+    return "HEIC-фото выбрано. Если точка не появилась, поставьте ее на карте";
+  }
+  if (!/^image\/jpe?g$/i.test(type) && !/\.jpe?g$/i.test(name)) {
+    return "Геометки читаются из JPEG. Поставьте точку на карте";
+  }
+  return "В фото нет геометки. Поставьте точку на карте";
 }
 
 function bindDumpSubmit() {
@@ -849,16 +863,20 @@ function isWaterColor(red, green, blue) {
 }
 
 async function readImageGps(file) {
-  if (!/^image\/jpe?g$/i.test(file.type)) return null;
+  const isJpeg = /^image\/jpe?g$/i.test(file.type) || /\.jpe?g$/i.test(file.name || "");
+  if (!isJpeg) return null;
   try {
     const buffer = await file.arrayBuffer();
     const view = new DataView(buffer);
-    if (view.getUint16(0, false) !== 0xffd8) return null;
+    if (view.byteLength < 4 || view.getUint16(0, false) !== 0xffd8) return null;
     let offset = 2;
-    while (offset < view.byteLength) {
+    while (offset + 4 <= view.byteLength) {
+      if (view.getUint8(offset) !== 0xff) break;
       const marker = view.getUint16(offset, false);
       offset += 2;
+      if (marker === 0xffda || marker === 0xffd9) break;
       const length = view.getUint16(offset, false);
+      if (length < 2 || offset + length > view.byteLength) break;
       offset += 2;
       if (marker === 0xffe1 && readAscii(view, offset, 6) === "Exif\0\0") {
         return parseExifGps(view, offset + 6);
@@ -872,9 +890,13 @@ async function readImageGps(file) {
 }
 
 function parseExifGps(view, tiffStart) {
-  const little = readAscii(view, tiffStart, 2) === "II";
+  if (tiffStart + 8 > view.byteLength) return null;
+  const order = readAscii(view, tiffStart, 2);
+  const little = order === "II";
+  if (!little && order !== "MM") return null;
+  if (view.getUint16(tiffStart + 2, little) !== 42) return null;
   const firstIfd = tiffStart + view.getUint32(tiffStart + 4, little);
-  const gpsPointer = findIfdValue(view, tiffStart, firstIfd, 0x8825, little);
+  const gpsPointer = readIfdNumber(view, tiffStart, firstIfd, 0x8825, little);
   if (!gpsPointer) return null;
   const gpsIfd = tiffStart + gpsPointer;
   const latRef = readIfdAscii(view, tiffStart, gpsIfd, 0x0001, little);
@@ -887,43 +909,52 @@ function parseExifGps(view, tiffStart) {
   if (latRef.toUpperCase().startsWith("S")) lat *= -1;
   if (lngRef.toUpperCase().startsWith("W")) lng *= -1;
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
   return { lat, lng };
-}
-
-function findIfdValue(view, tiffStart, ifdOffset, tag, little) {
-  const count = view.getUint16(ifdOffset, little);
-  for (let index = 0; index < count; index += 1) {
-    const entry = ifdOffset + 2 + index * 12;
-    if (view.getUint16(entry, little) === tag) {
-      return view.getUint32(entry + 8, little);
-    }
-  }
-  return 0;
 }
 
 function readIfdAscii(view, tiffStart, ifdOffset, tag, little) {
   const entry = findIfdEntry(view, ifdOffset, tag, little);
   if (!entry) return "";
   const count = view.getUint32(entry + 4, little);
-  const valueOffset = count <= 4 ? entry + 8 : tiffStart + view.getUint32(entry + 8, little);
+  const valueOffset = getIfdValueOffset(view, tiffStart, entry, little);
+  if (!isSafeRange(view, valueOffset, count)) return "";
   return readAscii(view, valueOffset, count).replace(/\0/g, "");
 }
 
 function readIfdRationals(view, tiffStart, ifdOffset, tag, little) {
   const entry = findIfdEntry(view, ifdOffset, tag, little);
   if (!entry) return null;
+  const type = view.getUint16(entry + 2, little);
+  if (type !== 5 && type !== 10) return null;
   const count = view.getUint32(entry + 4, little);
-  const valueOffset = tiffStart + view.getUint32(entry + 8, little);
+  if (!count || count > 3) return null;
+  const valueOffset = getIfdValueOffset(view, tiffStart, entry, little);
+  if (!isSafeRange(view, valueOffset, count * 8)) return null;
   return Array.from({ length: count }, (_, index) => {
     const offset = valueOffset + index * 8;
-    const numerator = view.getUint32(offset, little);
-    const denominator = view.getUint32(offset + 4, little);
+    const numerator = type === 10 ? view.getInt32(offset, little) : view.getUint32(offset, little);
+    const denominator = type === 10 ? view.getInt32(offset + 4, little) : view.getUint32(offset + 4, little);
     return denominator ? numerator / denominator : 0;
   });
 }
 
+function readIfdNumber(view, tiffStart, ifdOffset, tag, little) {
+  const entry = findIfdEntry(view, ifdOffset, tag, little);
+  if (!entry) return 0;
+  const type = view.getUint16(entry + 2, little);
+  const count = view.getUint32(entry + 4, little);
+  if (count < 1) return 0;
+  const valueOffset = getIfdValueOffset(view, tiffStart, entry, little);
+  if (type === 3 && isSafeRange(view, valueOffset, 2)) return view.getUint16(valueOffset, little);
+  if (type === 4 && isSafeRange(view, valueOffset, 4)) return view.getUint32(valueOffset, little);
+  return 0;
+}
+
 function findIfdEntry(view, ifdOffset, tag, little) {
+  if (!isSafeRange(view, ifdOffset, 2)) return 0;
   const count = view.getUint16(ifdOffset, little);
+  if (!count || count > 256 || !isSafeRange(view, ifdOffset + 2, count * 12)) return 0;
   for (let index = 0; index < count; index += 1) {
     const entry = ifdOffset + 2 + index * 12;
     if (view.getUint16(entry, little) === tag) return entry;
@@ -931,11 +962,31 @@ function findIfdEntry(view, ifdOffset, tag, little) {
   return 0;
 }
 
+function getIfdValueOffset(view, tiffStart, entry, little) {
+  const type = view.getUint16(entry + 2, little);
+  const count = view.getUint32(entry + 4, little);
+  const bytes = ifdTypeSize(type) * count;
+  return bytes <= 4 ? entry + 8 : tiffStart + view.getUint32(entry + 8, little);
+}
+
+function ifdTypeSize(type) {
+  if (type === 1 || type === 2 || type === 7) return 1;
+  if (type === 3 || type === 8) return 2;
+  if (type === 4 || type === 9) return 4;
+  if (type === 5 || type === 10) return 8;
+  return 0;
+}
+
+function isSafeRange(view, offset, length) {
+  return Number.isFinite(offset) && Number.isFinite(length) && offset >= 0 && length >= 0 && offset + length <= view.byteLength;
+}
+
 function gpsToDecimal(parts) {
   return Number(parts[0] || 0) + Number(parts[1] || 0) / 60 + Number(parts[2] || 0) / 3600;
 }
 
 function readAscii(view, offset, length) {
+  if (!isSafeRange(view, offset, length)) return "";
   return Array.from({ length }, (_, index) => String.fromCharCode(view.getUint8(offset + index))).join("");
 }
 
