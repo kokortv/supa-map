@@ -7,8 +7,8 @@
     <link rel="preconnect" href="https://accounts.google.com">
     <link rel="preconnect" href="https://www.googleapis.com">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <link rel="stylesheet" href="./styles.css?v=20260603-2">
-    <script src="./config.js?v=20260603-2"></script>
+    <link rel="stylesheet" href="./styles.css?v=20260603-5">
+    <script src="./config.js?v=20260603-5"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
   </head>
@@ -26,7 +26,6 @@
         <section class="panel active" id="listView">
           <div class="toolbar">
             <button class="primary" id="newDumpButton" type="button">Добавить свалку</button>
-            <button class="secondary" id="refreshButton" type="button">Обновить</button>
           </div>
           <div class="filter-grid">
             <label>
@@ -63,8 +62,8 @@
           <div id="map"></div>
           <div class="map-actions">
             <button class="map-action-button" id="mapLocateButton" type="button" title="Мое положение"><span class="map-action-icon">⌖</span></button>
-            <button class="map-action-button add" id="mapNewDumpButton" type="button" title="Добавить свалку"><span class="map-action-icon">+</span></button>
           </div>
+          <button class="map-action-button add map-fab" id="mapNewDumpButton" type="button" title="Добавить свалку"><span class="map-action-icon">+</span></button>
         </section>
 
         <section class="panel" id="newView">
@@ -250,6 +249,6 @@
       </article>
     </template>
 
-    <script src="./app.js?v=20260603-2" defer></script>
+    <script src="./app.js?v=20260603-5" defer></script>
   </body>
 </html>

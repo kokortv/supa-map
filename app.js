@@ -69,6 +69,7 @@ document.addEventListener("DOMContentLoaded", () => {
   bindAuth();
   bindFilters();
   bindDumpForm();
+  bindPullToRefresh();
   initMapWhenReady();
   applySettingsToForm();
   checkDraft();
@@ -206,13 +207,43 @@ function bindAuth() {
     }
   });
 
-  $("#refreshButton").addEventListener("click", loadDumps);
   $("#adminRefreshButton").addEventListener("click", loadDumps);
   $("#mapLocateButton").addEventListener("click", () => getCurrentPosition());
   $("#newDumpButton").addEventListener("click", () => openView("newView"));
   $("#mapNewDumpButton").addEventListener("click", () => openView("newView"));
   $("#backToListButton").addEventListener("click", () => openView("listView"));
   $("#signOutButton").addEventListener("click", signOut);
+}
+
+function bindPullToRefresh() {
+  ["listView", "settingsView"].forEach((id) => {
+    const panel = $("#" + id);
+    let startY = 0;
+    let pulling = false;
+    panel.addEventListener("touchstart", (event) => {
+      if (panel.scrollTop > 0) return;
+      startY = event.touches[0]?.clientY || 0;
+      pulling = true;
+    }, { passive: true });
+    panel.addEventListener("touchmove", (event) => {
+      if (!pulling || panel.scrollTop > 0) return;
+      const delta = (event.touches[0]?.clientY || 0) - startY;
+      panel.classList.toggle("pulling", delta > 36);
+    }, { passive: true });
+    panel.addEventListener("touchend", async (event) => {
+      if (!pulling) return;
+      const endY = event.changedTouches[0]?.clientY || startY;
+      const delta = endY - startY;
+      pulling = false;
+      panel.classList.remove("pulling");
+      if (panel.scrollTop === 0 && delta > 70) {
+        panel.classList.add("refreshing");
+        await loadDumps();
+        panel.classList.remove("refreshing");
+        toast("Данные обновлены");
+      }
+    });
+  });
 }
 
 function bindFilters() {
