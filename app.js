@@ -1058,12 +1058,11 @@ function renderMap() {
 }
 
 function createDumpPopup(dump) {
-  const photoUrl = getPhotoUrl(dump);
   const thumbnailUrl = getPhotoThumbnailUrl(dump);
   const description = dump.description ? escapeHtml(dump.description) : "Без описания";
   return `
     <article class="dump-popup">
-      ${thumbnailUrl ? `<a href="${escapeAttr(photoUrl)}" target="_blank" rel="noreferrer"><img class="popup-photo" src="${escapeAttr(thumbnailUrl)}" alt="Фото свалки" loading="lazy"></a>` : ""}
+      ${thumbnailUrl ? `<img class="popup-photo" src="${escapeAttr(thumbnailUrl)}" alt="Фото свалки" loading="lazy">` : ""}
       <div class="popup-body">
         <div class="popup-heading">
           <span class="popup-status" style="background:${escapeAttr(getColor(dump.status))}">${escapeHtml(statusText(dump.status))}</span>
@@ -1076,7 +1075,6 @@ function createDumpPopup(dump) {
           <div><dt>Координаты</dt><dd>${dump.lat.toFixed(5)}, ${dump.lng.toFixed(5)}</dd></div>
         </dl>
         <p class="popup-description">${description}</p>
-        ${photoUrl ? `<a class="popup-link" href="${escapeAttr(photoUrl)}" target="_blank" rel="noreferrer">Открыть фото</a>` : ""}
       </div>
     </article>
   `;
@@ -1120,7 +1118,6 @@ function createDumpItem(dump, adminMode) {
   $("h3", node).textContent = `${dump.type} · ${dump.size}`;
   $(".meta", node).textContent = `${formatDate(dump.createdAt)} · ${dump.confirmations.length} подтвержд. · ${dump.createdByEmail}`;
   $(".desc", node).textContent = dump.description || "Без описания";
-  $(".photo-link", node).href = dump.photoUrl || `https://drive.google.com/file/d/${dump.photoFileId}/view`;
   $(".focus-button", node).addEventListener("click", () => focusDump(dump));
   $(".confirm-button", node).disabled = hasConfirmed(dump) || dump.status === "rejected";
   $(".confirm-button", node).textContent = state.profile?.email
