@@ -15,7 +15,7 @@ python3 -m http.server 8080
 1. В Google Cloud Console создайте OAuth Client ID типа Web application.
 2. Добавьте authorized JavaScript origin: `http://localhost:8080`.
 3. В `app.js` укажите OAuth Client ID в `APP_GOOGLE_CLIENT_ID` или сохраните его один раз в настройках.
-4. Первичный администратор уже задан как `kirill.kokorin@gmail.com`.
+4. Первичный администратор задается в `BOOTSTRAP_ADMIN_EMAILS` внутри `app.js`.
 5. Откройте приложение, раздел `Настройки`, вставьте:
    - OAuth Client ID;
    - email дополнительных администраторов через запятую, если они нужны.
