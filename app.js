@@ -2,7 +2,7 @@ const CONFIG_KEY = "dump-map-config-v1";
 const SESSION_KEY = "dump-map-session-v1";
 const DEFAULT_THEME = "system";
 const APP_GOOGLE_CLIENT_ID = "66393576825-hl14ol7johmufhen7e10iugfne9dv6mk.apps.googleusercontent.com";
-const APP_GOOGLE_SHEET_ID = "1rYGrZH4XnV6BaIdV2RWcSN9d";
+const APP_GOOGLE_SHEET_ID = "1rYGrZH4XnV6BaIdV2RWcSN9d--Lfb4Boijho3ut05mA";
 const APP_DRIVE_FOLDER_ID = "1Ue_kyzdJQ1FN4alQRl-iWckFn0tP_EUe";
 const BOOTSTRAP_ADMIN_EMAILS = [
   "kirill.kokorin@gmail.com"
@@ -573,8 +573,16 @@ async function loadDumps() {
   } catch (error) {
     state.dumps = [];
     renderMapAndLists();
-    toast(state.token ? error.message : "Публичное чтение таблицы недоступно");
+    toast(humanizeGoogleError(error, state.token ? "Не удалось загрузить таблицу" : "Публичное чтение таблицы недоступно"));
   }
+}
+
+function humanizeGoogleError(error, fallback) {
+  const message = String(error?.message || "");
+  if (/requested entity was not found|not found|404/i.test(message)) {
+    return "Google не нашел таблицу. Проверьте Sheet ID и название листа Dumps";
+  }
+  return message || fallback;
 }
 
 async function loadPublicDumpRows() {
