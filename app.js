@@ -739,7 +739,7 @@ async function getCurrentPosition({ useForDump = false } = {}) {
         }
       },
       (error) => {
-        toast(error.message || "Геолокация отклонена");
+        toast(humanizeGeolocationError(error));
         $("#locateButton").disabled = false;
         $("#mapLocateButton").disabled = false;
         resolve(null);
@@ -747,6 +747,13 @@ async function getCurrentPosition({ useForDump = false } = {}) {
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 15000 }
     );
   });
+}
+
+function humanizeGeolocationError(error) {
+  if (error?.code === 1) return "Доступ к геолокации запрещен";
+  if (error?.code === 2) return "Не удалось определить местоположение";
+  if (error?.code === 3) return "Геолокация не ответила вовремя";
+  return "Геолокация отклонена";
 }
 
 async function setDumpLocation(lat, lng) {
@@ -1113,6 +1120,7 @@ function renderAdminList() {
 
 function createDumpItem(dump, adminMode) {
   const node = $("#dumpItemTemplate").content.firstElementChild.cloneNode(true);
+  node.classList.add(`status-${dump.status || "pending"}`);
   $(".badge", node).textContent = statusText(dump.status);
   $(".badge", node).style.background = getColor(dump.status);
   $("h3", node).textContent = `${dump.type} · ${dump.size}`;
@@ -1281,9 +1289,9 @@ function hasConfirmed(dump) {
 }
 
 function getColor(status) {
-  if (status === "confirmed") return "#288f61";
-  if (status === "rejected") return "#c8423f";
-  return "#f2a93b";
+  if (status === "confirmed") return "#16a36f";
+  if (status === "rejected") return "#ef4d5d";
+  return "#ffb020";
 }
 
 function statusText(status) {
