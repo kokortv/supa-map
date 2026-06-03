@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Supa Map</title>
+    <link rel="preconnect" href="https://accounts.google.com">
+    <link rel="preconnect" href="https://www.googleapis.com">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="./styles.css">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="brand">
+        <div>
+          <p class="eyebrow">Clean Georgia</p>
+          <h1>Supa Map</h1>
+        </div>
+        <span class="status-pill" id="authStatus">Не вошли</span>
+      </header>
+
+      <main class="content">
+        <section class="panel active" id="listView">
+          <div class="toolbar">
+            <button class="primary" id="newDumpButton" type="button">Добавить свалку</button>
+            <button class="secondary" id="refreshButton" type="button">Обновить</button>
+          </div>
+          <div class="filter-grid">
+            <label>
+              Статус
+              <select id="statusFilter">
+                <option value="all">Все</option>
+                <option value="pending">Не подтвержденные</option>
+                <option value="confirmed">Подтвержденные</option>
+                <option value="rejected">Отклоненные</option>
+              </select>
+            </label>
+            <label>
+              Тип
+              <select id="typeFilter">
+                <option value="all">Все типы</option>
+                <option value="Бытовой мусор">Бытовой мусор</option>
+                <option value="Строительный мусор">Строительный мусор</option>
+                <option value="Промышленный мусор">Промышленный мусор</option>
+                <option value="Опасные отходы">Опасные отходы</option>
+                <option value="Смешанный мусор">Смешанный мусор</option>
+              </select>
+            </label>
+          </div>
+          <div class="legend">
+            <span><i class="dot pending"></i>Не подтверждена</span>
+            <span><i class="dot confirmed"></i>Подтверждена</span>
+            <span><i class="dot rejected"></i>Отклонена</span>
+          </div>
+          <div class="list" id="dumpList" aria-live="polite"></div>
+        </section>
+
+        <section class="panel map-panel" id="mapView">
+          <div id="map"></div>
+          <div class="map-actions">
+            <button class="map-action-button" id="mapLocateButton" type="button" title="Мое положение">⌖</button>
+            <button class="map-action-button add" id="mapNewDumpButton" type="button" title="Добавить свалку">＋</button>
+          </div>
+        </section>
+
+        <section class="panel" id="newView">
+          <div class="toolbar">
+            <button class="secondary" id="backToListButton" type="button">Назад</button>
+          </div>
+          <form id="dumpForm" class="form">
+            <label>
+              Тип мусора
+              <select name="type" required>
+                <option value="Бытовой мусор">Бытовой мусор</option>
+                <option value="Строительный мусор">Строительный мусор</option>
+                <option value="Промышленный мусор">Промышленный мусор</option>
+                <option value="Опасные отходы">Опасные отходы</option>
+                <option value="Смешанный мусор">Смешанный мусор</option>
+              </select>
+            </label>
+            <label>
+              Размер
+              <select name="size" required>
+                <option value="Маленькая">Маленькая</option>
+                <option value="Средняя">Средняя</option>
+                <option value="Большая">Большая</option>
+              </select>
+            </label>
+            <label>
+              Фото
+              <input name="photo" id="photoInput" type="file" accept="image/*" hidden>
+              <input id="cameraInput" type="file" accept="image/*" capture="environment" hidden>
+              <div class="photo-actions">
+                <button class="secondary" id="cameraButton" type="button">Сделать фото</button>
+                <button class="secondary" id="galleryButton" type="button">Выбрать из галереи</button>
+              </div>
+            </label>
+            <div class="location-box">
+              <div>
+                <strong id="locationText">Локация не получена</strong>
+                <span id="coordsText">Поставьте точку на карте или используйте текущее положение</span>
+              </div>
+              <div class="location-actions">
+                <button class="secondary" id="selectPointButton" type="button">На карте</button>
+                <button class="secondary" id="locateButton" type="button">Сейчас</button>
+              </div>
+            </div>
+            <label>
+              Описание
+              <textarea name="description" rows="4" maxlength="500" placeholder="Необязательно"></textarea>
+            </label>
+            <img id="photoPreview" class="preview" alt="Предпросмотр фото" hidden>
+            <button class="primary" type="submit">Отправить заявку</button>
+          </form>
+          <div class="success-panel" id="successPanel" hidden>
+            <div class="success-icon">✓</div>
+            <h2>Заявка добавлена</h2>
+            <p>Спасибо. Мы получили точку, фото и описание. Заявку проверят в ближайшее время.</p>
+            <div class="toolbar">
+              <button class="primary" id="successMapButton" type="button">Посмотреть карту</button>
+              <button class="secondary" id="successNewButton" type="button">Добавить еще</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" id="settingsView">
+          <div class="settings-stack">
+            <section class="settings-section">
+              <h2>Пользователь</h2>
+              <p class="meta" id="profileSummary">Войдите, чтобы добавлять и подтверждать заявки.</p>
+              <div class="toolbar">
+                <button class="primary" id="signInButton" type="button">Войти через Google</button>
+                <button class="secondary" id="signOutButton" type="button" hidden>Выйти</button>
+              </div>
+            </section>
+
+            <section class="settings-section">
+              <h2>Тема</h2>
+              <div class="segmented" id="themePicker" role="group" aria-label="Тема">
+                <button type="button" data-theme-value="system">Система</button>
+                <button type="button" data-theme-value="light">Светлая</button>
+                <button type="button" data-theme-value="dark">Темная</button>
+              </div>
+            </section>
+
+            <section class="settings-section" data-admin-only>
+              <div class="admin-head">
+                <div>
+                  <h2>Админ-панель</h2>
+                  <p id="adminHint">Заявки и хранилище Supa Map.</p>
+                </div>
+                <button class="secondary" id="adminRefreshButton" type="button">Обновить</button>
+              </div>
+              <div class="list admin-list" id="adminList"></div>
+            </section>
+
+            <section class="settings-section" data-admin-only>
+              <h2>Хранилище</h2>
+              <form id="settingsForm" class="form">
+                <label>
+                  Google OAuth Client ID
+                  <input name="clientId" autocomplete="off" placeholder="...apps.googleusercontent.com">
+                </label>
+                <label>
+                  Google Sheet ID
+                  <input name="sheetId" autocomplete="off" placeholder="ID таблицы">
+                </label>
+                <label>
+                  Drive Folder ID
+                  <input name="folderId" autocomplete="off" placeholder="ID папки">
+                </label>
+                <label>
+                  Email администраторов
+                  <textarea name="adminEmails" rows="3" placeholder="Дополнительные админы через запятую"></textarea>
+                </label>
+                <div class="toolbar">
+                  <button class="primary" type="submit">Сохранить</button>
+                  <button class="secondary" id="initSheetButton" type="button">Создать хранилище</button>
+                </div>
+              </form>
+              <div class="schema">
+                <strong>Первичный админ:</strong> kirill.kokorin@gmail.com<br>
+                <strong>Лист:</strong> Dumps<br>
+                <strong>Подтверждение:</strong> второй уникальный пользователь меняет статус на подтвержденный.
+              </div>
+            </section>
+          </div>
+        </section>
+      </main>
+
+      <nav class="tabs bottom-tabs" aria-label="Разделы">
+        <button class="tab-button active" type="button" data-view="listView" title="Список">☰<span>Список</span></button>
+        <button class="tab-button" type="button" data-view="mapView" title="Карта">⌖<span>Карта</span></button>
+        <button class="tab-button" type="button" data-view="settingsView" title="Настройки">⚙<span>Настройки</span></button>
+      </nav>
+
+      <div class="map-overlay" id="toast" role="status" aria-live="polite" hidden></div>
+      <div class="app-dialog-backdrop" id="dialogBackdrop" hidden>
+        <section class="app-dialog" role="dialog" aria-modal="true" aria-labelledby="dialogTitle">
+          <h2 id="dialogTitle"></h2>
+          <p id="dialogMessage"></p>
+          <div class="dialog-actions">
+            <button class="secondary" id="dialogCancelButton" type="button">Отмена</button>
+            <button class="danger" id="dialogConfirmButton" type="button">Удалить</button>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <template id="dumpItemTemplate">
+      <article class="item">
+        <div class="item-top">
+          <span class="badge"></span>
+          <button class="ghost focus-button" type="button">На карте</button>
+        </div>
+        <h3></h3>
+        <p class="meta"></p>
+        <p class="desc"></p>
+        <div class="item-actions">
+          <button class="secondary confirm-button" type="button">Подтвердить</button>
+          <a class="link-button photo-link" target="_blank" rel="noreferrer">Фото</a>
+        </div>
+      </article>
+    </template>
+
+    <script src="./app.js" defer></script>
+  </body>
+</html>
