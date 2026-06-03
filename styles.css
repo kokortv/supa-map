@@ -13,8 +13,15 @@
   --field: #f8faf9;
   --shadow: 0 16px 40px rgba(26, 39, 32, 0.10);
   --soft-shadow: 0 8px 24px rgba(26, 39, 32, 0.08);
-  --nav-height: 72px;
-  --header-height: 77px;
+  --nav-height: 74px;
+  --header-height: 74px;
+  --app-height: 100vh;
+}
+
+@supports (height: 100dvh) {
+  :root {
+    --app-height: 100dvh;
+  }
 }
 
 body.theme-dark {
@@ -37,6 +44,7 @@ body.theme-dark {
 html,
 body {
   width: 100%;
+  height: 100%;
   max-width: 100%;
   overflow-x: hidden;
 }
@@ -47,7 +55,8 @@ body {
 
 body {
   margin: 0;
-  min-height: 100svh;
+  min-height: var(--app-height);
+  overflow: hidden;
   color: var(--ink);
   background: var(--bg);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -70,8 +79,9 @@ a {
   display: grid;
   grid-template-rows: auto 1fr auto;
   width: 100%;
-  min-height: 100svh;
-  overflow-x: hidden;
+  height: var(--app-height);
+  max-width: 100vw;
+  overflow: hidden;
   background: var(--bg);
 }
 
@@ -81,9 +91,10 @@ a {
   justify-content: space-between;
   gap: 12px;
   min-width: 0;
-  min-height: var(--header-height);
-  padding: 18px max(16px, env(safe-area-inset-left)) 14px max(16px, env(safe-area-inset-left));
-  background: var(--panel);
+  height: var(--header-height);
+  padding: 14px max(14px, env(safe-area-inset-left)) 12px max(14px, env(safe-area-inset-left));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--panel) 98%, var(--focus-soft)), var(--panel));
   border-bottom: 1px solid var(--line);
 }
 
@@ -93,14 +104,14 @@ a {
 
 .content {
   min-height: 0;
-  overflow: clip;
+  overflow: hidden;
   background: var(--bg);
 }
 
 .eyebrow {
   margin: 0 0 4px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0;
   text-transform: uppercase;
@@ -115,7 +126,7 @@ p {
 
 h1 {
   margin-bottom: 0;
-  font-size: clamp(24px, 7vw, 30px);
+  font-size: clamp(23px, 6.8vw, 29px);
   line-height: 1.05;
 }
 
@@ -144,10 +155,11 @@ h2 {
 .tabs {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
+  gap: 8px;
   min-height: var(--nav-height);
+  height: var(--nav-height);
   padding: 8px max(10px, env(safe-area-inset-left)) calc(8px + env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
-  border-top: 1px solid var(--line);
+  border-top: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
   background: color-mix(in srgb, var(--panel) 94%, transparent);
   backdrop-filter: blur(18px);
 }
@@ -160,14 +172,15 @@ h2 {
 }
 
 .tab-button {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto auto;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 5px;
   min-width: 0;
   height: 46px;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 16px;
   color: var(--muted);
   background: transparent;
   cursor: pointer;
@@ -184,14 +197,16 @@ h2 {
   color: var(--focus);
   border-color: transparent;
   background: var(--focus-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--focus) 10%, transparent);
 }
 
 .panel {
   display: none;
-  height: calc(100svh - var(--header-height) - var(--nav-height));
+  height: 100%;
+  max-width: 100vw;
   overflow: auto;
   overflow-x: hidden;
-  padding: 16px max(14px, env(safe-area-inset-left)) 18px max(14px, env(safe-area-inset-left));
+  padding: 14px max(12px, env(safe-area-inset-left)) 18px max(12px, env(safe-area-inset-left));
   background: var(--bg);
   overscroll-behavior: contain;
 }
@@ -219,7 +234,7 @@ h2 {
 
 .toolbar {
   flex-wrap: wrap;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .admin-head,
@@ -229,9 +244,9 @@ h2 {
 
 button,
 .link-button {
-  min-height: 40px;
+  min-height: 42px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 0 14px;
   text-decoration: none;
   cursor: pointer;
@@ -242,7 +257,7 @@ button,
 .primary {
   color: #ffffff;
   background: var(--focus);
-  box-shadow: 0 8px 18px rgba(36, 107, 254, 0.24);
+  box-shadow: 0 10px 22px rgba(36, 107, 254, 0.25);
 }
 
 .secondary,
@@ -268,7 +283,7 @@ button:disabled {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .form {
@@ -293,7 +308,7 @@ textarea {
   max-width: 100%;
   min-height: 42px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 10px 12px;
   color: var(--ink);
   background: var(--field);
@@ -773,12 +788,32 @@ video {
 }
 
 @media (max-width: 430px) {
+  :root {
+    --header-height: 68px;
+    --nav-height: 68px;
+  }
+
   .toolbar {
     flex-wrap: wrap;
   }
 
   .toolbar > button {
-    flex: 1 1 140px;
+    flex: 1 1 100%;
+  }
+
+  .brand {
+    gap: 8px;
+  }
+
+  .status-pill {
+    max-width: 38vw;
+    min-height: 26px;
+    padding: 0 8px;
+    font-size: 11px;
+  }
+
+  h1 {
+    font-size: 22px;
   }
 
   .location-box {
@@ -799,8 +834,31 @@ video {
   }
 
   .tab-button {
+    display: flex;
+    flex-direction: column;
     gap: 4px;
     padding: 0 6px;
-    font-size: 13px;
+    height: 50px;
+    font-size: 12px;
+    line-height: 1.1;
+  }
+
+  .panel {
+    padding-inline: 10px;
+  }
+}
+
+@media (max-width: 360px) {
+  .tab-button {
+    font-size: 11px;
+    padding: 0 4px;
+  }
+
+  .eyebrow {
+    font-size: 10px;
+  }
+
+  h1 {
+    font-size: 20px;
   }
 }
