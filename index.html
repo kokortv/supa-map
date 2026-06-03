@@ -160,18 +160,6 @@
               <h2>Хранилище</h2>
               <form id="settingsForm" class="form">
                 <label>
-                  Google OAuth Client ID
-                  <input name="clientId" autocomplete="off" placeholder="...apps.googleusercontent.com">
-                </label>
-                <label>
-                  Google Sheet ID
-                  <input name="sheetId" autocomplete="off" placeholder="ID таблицы">
-                </label>
-                <label>
-                  Drive Folder ID
-                  <input name="folderId" autocomplete="off" placeholder="ID папки">
-                </label>
-                <label>
                   Email администраторов
                   <textarea name="adminEmails" rows="3" placeholder="Дополнительные админы через запятую"></textarea>
                 </label>
@@ -181,9 +169,18 @@
                 </div>
               </form>
               <div class="schema">
-                <strong>Доступ администратора:</strong> задается в приложении<br>
-                <strong>Лист:</strong> Dumps<br>
-                <strong>Подтверждение:</strong> второй уникальный пользователь меняет статус на подтвержденный.
+                <div>
+                  <strong>Доступ администратора</strong>
+                  <span>задается в приложении</span>
+                </div>
+                <div>
+                  <strong>Лист</strong>
+                  <span>Dumps</span>
+                </div>
+                <div>
+                  <strong>Подтверждение</strong>
+                  <span>второй уникальный пользователь меняет статус на подтвержденный</span>
+                </div>
               </div>
             </section>
           </div>

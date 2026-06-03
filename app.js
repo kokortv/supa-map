@@ -145,9 +145,9 @@ function bindSettings() {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     state.config = {
-      clientId: String(form.get("clientId") || "").trim(),
-      sheetId: String(form.get("sheetId") || "").trim(),
-      folderId: String(form.get("folderId") || "").trim(),
+      clientId: state.config.clientId || APP_GOOGLE_CLIENT_ID,
+      sheetId: state.config.sheetId || APP_GOOGLE_SHEET_ID,
+      folderId: state.config.folderId || APP_DRIVE_FOLDER_ID,
       theme: state.config.theme || DEFAULT_THEME,
       adminEmails: String(form.get("adminEmails") || "")
         .split(/[\s,;]+/)
@@ -184,9 +184,6 @@ function bindSettings() {
 
 function applySettingsToForm() {
   const form = $("#settingsForm");
-  form.clientId.value = state.config.clientId || APP_GOOGLE_CLIENT_ID || "";
-  form.sheetId.value = state.config.sheetId || "";
-  form.folderId.value = state.config.folderId || "";
   form.adminEmails.value = (state.config.adminEmails || []).join(", ");
 }
 

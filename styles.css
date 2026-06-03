@@ -280,6 +280,11 @@ h2 {
 .toolbar {
   flex-wrap: wrap;
   margin-bottom: 14px;
+  min-width: 0;
+}
+
+.toolbar button {
+  min-width: 0;
 }
 
 .admin-head,
@@ -364,6 +369,7 @@ button:disabled {
   gap: 14px;
   max-width: 720px;
   margin: 0 auto;
+  min-width: 0;
 }
 
 label {
@@ -407,7 +413,7 @@ textarea {
 }
 
 .legend span,
-.schema {
+.schema div {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -507,6 +513,7 @@ textarea {
   color: var(--muted);
   font-size: 13px;
   line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .desc {
@@ -532,6 +539,33 @@ textarea {
   padding: 17px;
   background: var(--surface);
   box-shadow: var(--soft-shadow);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.schema {
+  display: grid;
+  gap: 11px;
+  min-width: 0;
+}
+
+.schema div {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.schema strong,
+.schema span {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.schema span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
 }
 
 .settings-section:nth-child(1) {
