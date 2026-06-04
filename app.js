@@ -504,7 +504,7 @@ function bindDumpSubmit() {
         photoUrl: uploaded.webViewLink || `https://drive.google.com/file/d/${uploaded.id}/view`,
         createdByEmail: state.profile.email,
         createdByName: state.profile.name || state.profile.email,
-        confirmations: state.profile.email,
+        confirmations: "",
         adminNote: ""
       };
       await appendDump(row);
@@ -1118,7 +1118,11 @@ function renderCurrentLocationMarker() {
       fillOpacity: 0.95,
       weight: 3
     }).addTo(state.map);
-    state.currentLocationMarker.bindPopup("Вы здесь");
+    state.currentLocationMarker.bindPopup("Вы здесь", {
+      className: "compact-popup",
+      autoPanPaddingTopLeft: [18, 82],
+      autoPanPaddingBottomRight: [18, 96]
+    });
   } else {
     state.currentLocationMarker.setLatLng(latLng);
   }
@@ -1129,7 +1133,11 @@ function renderSelectedDumpMarker() {
   const latLng = [state.location.lat, state.location.lng];
   if (!state.selectedDumpMarker) {
     state.selectedDumpMarker = L.marker(latLng).addTo(state.map);
-    state.selectedDumpMarker.bindPopup("Точка заявки");
+    state.selectedDumpMarker.bindPopup("Точка заявки", {
+      className: "compact-popup",
+      autoPanPaddingTopLeft: [18, 82],
+      autoPanPaddingBottomRight: [18, 96]
+    });
   } else {
     state.selectedDumpMarker.setLatLng(latLng);
   }
@@ -1223,8 +1231,12 @@ function renderMap() {
       weight: 2
     }).addTo(state.map);
     marker.bindPopup(createDumpPopup(dump), {
-      maxWidth: 320,
-      minWidth: 260
+      maxWidth: 280,
+      minWidth: 220,
+      autoPan: true,
+      keepInView: true,
+      autoPanPaddingTopLeft: [18, 82],
+      autoPanPaddingBottomRight: [18, 104]
     });
     state.markers.set(dump.id, marker);
   });
@@ -1239,7 +1251,7 @@ function createDumpPopup(dump) {
       <div class="popup-body">
         <div class="popup-heading">
           <span class="popup-status" style="background:${escapeAttr(getColor(dump.status))}">${escapeHtml(statusText(dump.status))}</span>
-          <span class="popup-count">${dump.confirmations.length} подтвержд.</span>
+          <span class="popup-count">${getEffectiveConfirmations(dump).length} подтвержд.</span>
         </div>
         <div class="popup-title">${escapeHtml(dump.type)}</div>
         <dl class="popup-details">
@@ -1334,16 +1346,18 @@ function createDumpItem(dump, adminMode) {
   $("h3", node).textContent = `${dump.type} · ${dump.size}`;
   $(".meta", node).innerHTML = `
     <span>${icon("clock")}${escapeHtml(formatDate(dump.createdAt))}</span>
-    <span>${icon("check-circle")}${dump.confirmations.length} подтвержд.</span>
+    <span>${icon("check-circle")}${getEffectiveConfirmations(dump).length} подтвержд.</span>
     <span>${icon("user")}${escapeHtml(dump.createdByEmail)}</span>
   `;
   $(".desc", node).textContent = dump.description || "Без описания";
   $(".focus-button", node).addEventListener("click", () => focusDump(dump));
-  $(".confirm-button", node).disabled = hasConfirmed(dump) || dump.status === "rejected";
+  const confirmedByCurrentUser = hasConfirmed(dump);
+  $(".confirm-button", node).disabled = !canConfirmDump(dump);
+  const ownPendingDump = isOwnDump(dump) && dump.status === "pending";
   const confirmLabel = state.profile?.email
-    ? (hasConfirmed(dump) ? "Уже подтверждено" : "Подтвердить")
+    ? (ownPendingDump ? "Ожидает проверки" : confirmedByCurrentUser ? "Уже подтверждено" : "Подтвердить")
     : "Войти и подтвердить";
-  $(".confirm-button", node).innerHTML = `${icon(hasConfirmed(dump) ? "check-check" : "check-circle")}<span>${escapeHtml(confirmLabel)}</span>`;
+  $(".confirm-button", node).innerHTML = `${icon(confirmedByCurrentUser ? "check-check" : "check-circle")}<span>${escapeHtml(confirmLabel)}</span>`;
   $(".confirm-button", node).addEventListener("click", () => confirmDump(dump));
   $(".share-button", node).addEventListener("click", () => shareDump(dump));
 
@@ -1420,8 +1434,12 @@ async function confirmDump(dump) {
   try {
     await requireReady();
     if (!state.profile?.email) return;
+    if (isOwnDump(dump)) {
+      toast("Заявку должен подтвердить другой пользователь");
+      return;
+    }
     dump.confirmations = [...new Set([...dump.confirmations, state.profile.email])];
-    if (dump.confirmations.length > 1) dump.status = "confirmed";
+    if (getEffectiveConfirmations(dump).length > 1) dump.status = "confirmed";
     await updateDump(dump);
     await loadDumps();
     toast("Подтверждение сохранено");
@@ -1502,8 +1520,15 @@ async function adminDelete(dump) {
 
 function focusDump(dump) {
   openView("mapView");
-  state.map?.setView([dump.lat, dump.lng], 17);
-  state.markers.get(dump.id)?.openPopup();
+  if (!state.map) return;
+  setTimeout(() => {
+    state.map.invalidateSize();
+    state.map.setView([dump.lat, dump.lng], 16, { animate: false });
+    const marker = state.markers.get(dump.id);
+    if (!marker) return;
+    marker.openPopup();
+    setTimeout(() => state.map.panBy([0, -120], { animate: true }), 80);
+  }, 140);
 }
 
 function getFilteredDumps() {
@@ -1529,7 +1554,25 @@ function getGoogleClientId() {
 }
 
 function hasConfirmed(dump) {
-  return Boolean(state.profile?.email && dump.confirmations.includes(state.profile.email));
+  return Boolean(state.profile?.email && getEffectiveConfirmations(dump).includes(state.profile.email));
+}
+
+function canConfirmDump(dump) {
+  return Boolean(state.profile?.email && dump.status !== "rejected" && !isOwnDump(dump) && !hasConfirmed(dump));
+}
+
+function isOwnDump(dump) {
+  return Boolean(state.profile?.email && normalizeEmail(dump.createdByEmail) === normalizeEmail(state.profile.email));
+}
+
+function getEffectiveConfirmations(dump) {
+  const owner = normalizeEmail(dump.createdByEmail);
+  return [...new Set(dump.confirmations.map(normalizeEmail).filter(Boolean))]
+    .filter((email) => email !== owner);
+}
+
+function normalizeEmail(email) {
+  return String(email || "").trim().toLowerCase();
 }
 
 function getColor(status) {
