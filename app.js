@@ -4,7 +4,7 @@ const DRAFT_DB_NAME = "supa-map-drafts";
 const DRAFT_STORE = "drafts";
 const DRAFT_ID = "new-dump";
 const DUPLICATE_RADIUS_METERS = 80;
-const DEFAULT_THEME = "system";
+const DEFAULT_THEME = "light";
 const APP_CONFIG = window.SUPA_MAP_CONFIG || {};
 const APP_GOOGLE_CLIENT_ID = APP_CONFIG.googleClientId || "66393576825-hl14ol7johmufhen7e10iugfne9dv6mk.apps.googleusercontent.com";
 const APP_GOOGLE_SHEET_ID = APP_CONFIG.googleSheetId || "1rYGrZH4XnV6BaIdV2RWcSN9d--Lfb4Boijho3ut05mA";
@@ -144,6 +144,9 @@ function bindNavigation() {
     button.addEventListener("click", () => {
       openView(button.dataset.view);
     });
+  });
+  $$("[data-view-shortcut]").forEach((button) => {
+    button.addEventListener("click", () => openView(button.dataset.viewShortcut));
   });
 }
 
@@ -1264,14 +1267,17 @@ function renderStats() {
   const confirmed = state.dumps.filter((dump) => dump.status === "confirmed").length;
   const rejected = state.dumps.filter((dump) => dump.status === "rejected").length;
   stats.innerHTML = [
-    ["Всего", total],
-    ["Новые", pending],
-    ["Подтв.", confirmed],
-    ["Откл.", rejected]
-  ].map(([label, value]) => `
+    ["Всего", total, "grid"],
+    ["Новые", pending, "flag"],
+    ["Подтв.", confirmed, "check-circle"],
+    ["Откл.", rejected, "x"]
+  ].map(([label, value, iconName]) => `
     <div class="stat-card">
-      <strong>${value}</strong>
-      <span>${label}</span>
+      <span class="stat-icon">${icon(iconName)}</span>
+      <div>
+        <strong>${value}</strong>
+        <span>${label}</span>
+      </div>
     </div>
   `).join("");
 }
@@ -1323,25 +1329,33 @@ function createDumpItem(dump, adminMode) {
     photo.src = thumbnailUrl;
     photo.hidden = false;
   }
+  const statusIcon = dump.status === "confirmed" ? "check-circle" : dump.status === "rejected" ? "x" : "flag";
+  $(".badge", node).innerHTML = `${icon(statusIcon)}<span>${escapeHtml(statusText(dump.status))}</span>`;
   $("h3", node).textContent = `${dump.type} · ${dump.size}`;
-  $(".meta", node).textContent = `${formatDate(dump.createdAt)} · ${dump.confirmations.length} подтвержд. · ${dump.createdByEmail}`;
+  $(".meta", node).innerHTML = `
+    <span>${icon("clock")}${escapeHtml(formatDate(dump.createdAt))}</span>
+    <span>${icon("check-circle")}${dump.confirmations.length} подтвержд.</span>
+    <span>${icon("user")}${escapeHtml(dump.createdByEmail)}</span>
+  `;
   $(".desc", node).textContent = dump.description || "Без описания";
   $(".focus-button", node).addEventListener("click", () => focusDump(dump));
   $(".confirm-button", node).disabled = hasConfirmed(dump) || dump.status === "rejected";
-  $(".confirm-button", node).textContent = state.profile?.email
+  const confirmLabel = state.profile?.email
     ? (hasConfirmed(dump) ? "Уже подтверждено" : "Подтвердить")
     : "Войти и подтвердить";
+  $(".confirm-button", node).innerHTML = `${icon(hasConfirmed(dump) ? "check-check" : "check-circle")}<span>${escapeHtml(confirmLabel)}</span>`;
   $(".confirm-button", node).addEventListener("click", () => confirmDump(dump));
+  $(".share-button", node).addEventListener("click", () => shareDump(dump));
 
   if (adminMode) {
     const admin = document.createElement("div");
     admin.className = "admin-extra";
     admin.innerHTML = `
       <div class="admin-actions">
-        <button class="icon-action approve" type="button" title="Подтвердить" aria-label="Подтвердить заявку">✓</button>
-        <button class="icon-action reject" type="button" title="Отказать" aria-label="Отказать в заявке">×</button>
-        <button class="icon-action edit-toggle" type="button" title="Редактировать" aria-label="Редактировать заявку" aria-expanded="false">✎</button>
-        <button class="icon-action remove" type="button" title="Удалить" aria-label="Удалить заявку">⌫</button>
+        <button class="icon-action approve" type="button" title="Подтвердить" aria-label="Подтвердить заявку">${icon("check-circle")}</button>
+        <button class="icon-action reject" type="button" title="Отказать" aria-label="Отказать в заявке">${icon("x")}</button>
+        <button class="icon-action edit-toggle" type="button" title="Редактировать" aria-label="Редактировать заявку" aria-expanded="false">${icon("edit")}</button>
+        <button class="icon-action remove" type="button" title="Удалить" aria-label="Удалить заявку">${icon("trash")}</button>
       </div>
       <div class="admin-edit-panel" hidden>
       <div class="admin-edit-grid">
@@ -1377,7 +1391,7 @@ function createDumpItem(dump, adminMode) {
         <textarea name="editAdminNote" rows="2" placeholder="Пояснение администратора">${escapeHtml(dump.adminNote || "")}</textarea>
       </label>
       <div class="admin-edit-actions">
-        <button class="primary save-edit" type="button" title="Сохранить" aria-label="Сохранить изменения">✓</button>
+        <button class="primary save-edit" type="button" title="Сохранить" aria-label="Сохранить изменения">${icon("save")}</button>
       </div>
       </div>
     `;
@@ -1398,6 +1412,10 @@ function createDumpItem(dump, adminMode) {
   return node;
 }
 
+function icon(name) {
+  return `<svg class="icon" aria-hidden="true"><use href="#icon-${name}"></use></svg>`;
+}
+
 async function confirmDump(dump) {
   try {
     await requireReady();
@@ -1409,6 +1427,20 @@ async function confirmDump(dump) {
     toast("Подтверждение сохранено");
   } catch (error) {
     toast(error.message);
+  }
+}
+
+async function shareDump(dump) {
+  const text = `${dump.type} · ${dump.size}\n${dump.lat.toFixed(6)}, ${dump.lng.toFixed(6)}`;
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: "Supa Map", text });
+      return;
+    }
+    await navigator.clipboard.writeText(text);
+    toast("Координаты скопированы");
+  } catch {
+    toast("Не удалось поделиться заявкой");
   }
 }
 

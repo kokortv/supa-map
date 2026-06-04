@@ -7,25 +7,53 @@
     <link rel="preconnect" href="https://accounts.google.com">
     <link rel="preconnect" href="https://www.googleapis.com">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <link rel="stylesheet" href="./styles.css?v=20260603-5">
-    <script src="./config.js?v=20260603-5"></script>
+    <link rel="stylesheet" href="./styles.css?v=20260604-eco4">
+    <script src="./config.js?v=20260604-eco4"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
   </head>
   <body>
+    <svg class="icon-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <symbol id="icon-leaf" viewBox="0 0 24 24"><path d="M5 19c6.5 0 13-5.2 13-13V4h-2C8.2 4 3 9.1 3 15.6V19h2Z"/><path d="M4 20 15 9"/></symbol>
+      <symbol id="icon-plus-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M8 12h8"/></symbol>
+      <symbol id="icon-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+      <symbol id="icon-grid" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.5"/><path d="M10 6v12M14 6v12M6 10h12M6 14h12"/></symbol>
+      <symbol id="icon-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="m8.5 12.2 2.2 2.2 4.8-5"/></symbol>
+      <symbol id="icon-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5"/><path d="M12 8v4.5l3 1.8"/></symbol>
+      <symbol id="icon-user" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3"/><path d="M6.5 19c.8-3.3 2.7-5 5.5-5s4.7 1.7 5.5 5"/></symbol>
+      <symbol id="icon-map" viewBox="0 0 24 24"><path d="m4 7 5-2 6 2 5-2v12l-5 2-6-2-5 2V7Z"/><path d="M9 5v12M15 7v12"/></symbol>
+      <symbol id="icon-map-pin" viewBox="0 0 24 24"><path d="M12 21s6-5.4 6-11a6 6 0 0 0-12 0c0 5.6 6 11 6 11Z"/><circle cx="12" cy="10" r="2"/></symbol>
+      <symbol id="icon-share" viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="m8.3 10.9 7.4-4.8M8.3 13.1l7.4 4.8"/></symbol>
+      <symbol id="icon-check-check" viewBox="0 0 24 24"><path d="m4 12 3.2 3.2L14 8.5"/><path d="m11 13.5 2.2 2.2L20 9"/></symbol>
+      <symbol id="icon-flag" viewBox="0 0 24 24"><path d="M6 21V5"/><path d="M6 5h10l-1.5 4L16 13H6"/></symbol>
+      <symbol id="icon-feed" viewBox="0 0 24 24"><rect x="6" y="5" width="12" height="14" rx="2"/><path d="M9 9h6M9 12h6M9 15h3"/></symbol>
+      <symbol id="icon-edit" viewBox="0 0 24 24"><path d="M5 18.5 6 14l9-9 4 4-9 9-4.5 1Z"/><path d="m13.5 6.5 4 4"/></symbol>
+      <symbol id="icon-trash" viewBox="0 0 24 24"><path d="M6 7h12M10 7V5h4v2M8 7l1 12h6l1-12"/><path d="M10.5 11v5M13.5 11v5"/></symbol>
+      <symbol id="icon-x" viewBox="0 0 24 24"><path d="m7 7 10 10M17 7 7 17"/></symbol>
+      <symbol id="icon-save" viewBox="0 0 24 24"><path d="M5 5h11l3 3v11H5V5Z"/><path d="M8 5v6h7V5M8 19v-5h8v5"/></symbol>
+    </svg>
     <div class="app-shell">
       <header class="brand">
-        <div>
-          <p class="eyebrow">Clean Georgia</p>
+        <div class="brand-main">
+          <p class="eyebrow">EcoGuard</p>
           <h1>Supa Map</h1>
+        </div>
+        <div class="brand-actions">
+          <button class="avatar-dot" type="button" data-view-shortcut="settingsView" title="Профиль" aria-label="Профиль">
+            <svg class="icon" aria-hidden="true"><use href="#icon-user"></use></svg>
+          </button>
         </div>
         <span class="status-pill" id="authStatus">Не вошли</span>
       </header>
 
       <main class="content">
         <section class="panel active" id="listView">
+          <div class="list-intro">
+            <p>Community Reports</p>
+            <h2>Помогите сделать среду чище. Проверяйте и добавляйте точки свалок рядом.</h2>
+          </div>
           <div class="toolbar">
-            <button class="primary" id="newDumpButton" type="button">Добавить свалку</button>
+            <button class="primary" id="newDumpButton" type="button"><svg class="icon" aria-hidden="true"><use href="#icon-plus-circle"></use></svg><span>Добавить свалку</span></button>
           </div>
           <div class="filter-grid">
             <label>
@@ -61,9 +89,9 @@
         <section class="panel map-panel" id="mapView">
           <div id="map"></div>
           <div class="map-actions">
-            <button class="map-action-button" id="mapLocateButton" type="button" title="Мое положение"><span class="map-action-icon">⌖</span></button>
+            <button class="map-action-button" id="mapLocateButton" type="button" title="Мое положение"><svg class="icon map-action-icon" aria-hidden="true"><use href="#icon-map-pin"></use></svg></button>
           </div>
-          <button class="map-action-button add map-fab" id="mapNewDumpButton" type="button" title="Добавить свалку"><span class="map-action-icon">+</span></button>
+          <button class="map-action-button add map-fab" id="mapNewDumpButton" type="button" title="Добавить свалку"><svg class="icon map-action-icon" aria-hidden="true"><use href="#icon-plus-circle"></use></svg></button>
         </section>
 
         <section class="panel" id="newView">
@@ -132,7 +160,7 @@
             <button class="primary" type="submit">Отправить заявку</button>
           </form>
           <div class="success-panel" id="successPanel" hidden>
-            <div class="success-icon">✓</div>
+            <div class="success-icon"><svg class="icon" aria-hidden="true"><use href="#icon-check-circle"></use></svg></div>
             <h2>Заявка добавлена</h2>
             <p>Спасибо. Мы получили точку, фото и описание. Заявку проверят в ближайшее время.</p>
             <div class="toolbar">
@@ -215,9 +243,10 @@
       </main>
 
       <nav class="tabs bottom-tabs" aria-label="Разделы">
-        <button class="tab-button active" type="button" data-view="listView" title="Список">☰<span>Список</span></button>
-        <button class="tab-button" type="button" data-view="mapView" title="Карта">⌖<span>Карта</span></button>
-        <button class="tab-button" type="button" data-view="settingsView" title="Настройки">⚙<span>Настройки</span></button>
+        <button class="tab-button active" type="button" data-view="listView" title="Лента"><svg class="icon" aria-hidden="true"><use href="#icon-feed"></use></svg><span>Лента</span></button>
+        <button class="tab-button" type="button" data-view="mapView" title="Карта"><svg class="icon" aria-hidden="true"><use href="#icon-map-pin"></use></svg><span>Карта</span></button>
+        <button class="tab-button" type="button" data-view="newView" title="Заявка"><svg class="icon" aria-hidden="true"><use href="#icon-plus-circle"></use></svg><span>Заявка</span></button>
+        <button class="tab-button" type="button" data-view="settingsView" title="Профиль"><svg class="icon" aria-hidden="true"><use href="#icon-user"></use></svg><span>Профиль</span></button>
       </nav>
 
       <div class="map-overlay" id="toast" role="status" aria-live="polite" hidden></div>
@@ -238,17 +267,18 @@
         <img class="item-photo" alt="Фото свалки" loading="lazy" hidden>
         <div class="item-top">
           <span class="badge"></span>
-          <button class="ghost focus-button" type="button">На карте</button>
+          <button class="ghost focus-button" type="button" title="На карте" aria-label="Показать на карте"><svg class="icon" aria-hidden="true"><use href="#icon-map"></use></svg></button>
         </div>
         <h3></h3>
         <p class="meta"></p>
         <p class="desc"></p>
         <div class="item-actions">
-          <button class="secondary confirm-button" type="button">Подтвердить</button>
+          <button class="secondary confirm-button" type="button"></button>
+          <button class="secondary share-button" type="button" title="Поделиться" aria-label="Поделиться заявкой"><svg class="icon" aria-hidden="true"><use href="#icon-share"></use></svg></button>
         </div>
       </article>
     </template>
 
-    <script src="./app.js?v=20260603-5" defer></script>
+    <script src="./app.js?v=20260604-eco4" defer></script>
   </body>
 </html>
